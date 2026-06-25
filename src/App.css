@@ -187,6 +187,43 @@
   opacity: 0.7;
 }
 
+.hero__proof {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 22px 0 0;
+  padding: 11px 14px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  max-width: 52ch;
+}
+
+.hero__proof-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(86, 211, 100, 0.18);
+}
+
+/* Caveat note (e.g. planned API shape) */
+.caveat {
+  margin: 14px 0 0;
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--warn);
+  background: rgba(227, 179, 65, 0.08);
+  border: 1px solid rgba(227, 179, 65, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
 /* ── Terminal / code card ───────────────────────────────────────────────── */
 .terminal {
   background: var(--surface-2);
@@ -641,6 +678,13 @@
   max-width: 50ch;
   color: var(--text-faint);
   font-size: 0.86rem;
+}
+
+.access__fine a,
+.access__success a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */

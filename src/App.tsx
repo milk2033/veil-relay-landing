@@ -63,6 +63,8 @@ interface ProofRoute {
   node: string;
   expectedIp: string;
   actualIp: string | null;
+  asn: string;
+  lastVerified: string;
   verification: string;
   status: "sdk_confirmed" | "blocked";
 }
@@ -74,6 +76,8 @@ const CONFIRMED_ROUTES: ProofRoute[] = [
     node: "sentnode1ym4qjy84p0gpvdz0zc2s9q9u5x7lmhdrzwlslz",
     expectedIp: "31.59.120.143",
     actualIp: "31.59.120.143",
+    asn: "AS56971 AS56971 Cloud",
+    lastVerified: "2026-06-25 04:43 UTC",
     verification: "strict PASS",
     status: "sdk_confirmed",
   },
@@ -83,6 +87,8 @@ const CONFIRMED_ROUTES: ProofRoute[] = [
     node: "sentnode1przesh8al9anu9m6wd3kp2lz8g4g2lh6qry7ra",
     expectedIp: "188.119.155.13",
     actualIp: "188.119.155.13",
+    asn: "AS201323 Host Media Ltd",
+    lastVerified: "2026-06-25 05:02 UTC",
     verification: "strict PASS",
     status: "sdk_confirmed",
   },
@@ -94,6 +100,8 @@ const BLOCKED_ROUTE: ProofRoute = {
   node: "sentnode19x60rkfph6zxa49and7jv9q02jwgycskgdkew2",
   expectedIp: "—",
   actualIp: null,
+  asn: "—",
+  lastVerified: "—",
   verification: "recent timeout",
   status: "blocked",
 };
@@ -156,6 +164,10 @@ const API_RESPONSE = `{
   ]
 }`;
 
+// TODO: replace with a real contact address before launch (placeholder only).
+const CONTACT_EMAIL = "early-access@veil-relay.dev";
+const CONTACT_SUBJECT = "Veil Relay early access";
+
 function Pill({ kind, children }: { kind: string; children: ReactNode }) {
   return <span className={`pill pill--${kind}`}>{children}</span>;
 }
@@ -203,6 +215,14 @@ function ProofCard({ r }: { r: ProofRoute }) {
         <span className={`kv__v${confirmed ? " kv__v--ok" : ""}`}>{r.actualIp ?? "not connected"}</span>
       </div>
       <div className="kv">
+        <span className="kv__k">ASN</span>
+        <span className="kv__v">{r.asn}</span>
+      </div>
+      <div className="kv">
+        <span className="kv__k">last verified</span>
+        <span className="kv__v">{r.lastVerified}</span>
+      </div>
+      <div className="kv">
         <span className="kv__k">verification</span>
         <span className={`kv__v${confirmed ? " kv__v--ok" : " kv__v--bad"}`}>{r.verification}</span>
       </div>
@@ -213,6 +233,20 @@ function ProofCard({ r }: { r: ProofRoute }) {
 export default function App() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  // No backend yet: the form just reveals a mailto contact path (see CONTACT_EMAIL TODO).
+  const mailtoBody = [
+    "Hi Veil Relay team,",
+    "",
+    "I'd like early access. Here's my use case:",
+    "- Target countries:",
+    "- Protocol needs (WireGuard / V2Ray):",
+    "- Expected volume:",
+    email ? `\nReply to: ${email}` : "",
+  ].join("\n");
+  const mailtoHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+    CONTACT_SUBJECT
+  )}&body=${encodeURIComponent(mailtoBody)}`;
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -267,6 +301,11 @@ export default function App() {
               <span>verified exit IP / ASN</span>
               <span>SDK feedback</span>
             </div>
+            <p className="hero__proof">
+              <span className="hero__proof-dot" aria-hidden="true" />
+              First confirmed routes: France and UK V2Ray, both matching predicted exit IPs
+              exactly.
+            </p>
           </div>
 
           <Terminal title="veil — best route">
@@ -393,11 +432,15 @@ export default function App() {
         <section className="section" id="api">
           <div className="section__head">
             <span className="eyebrow">For developers</span>
-            <h2>Ask for the best route. Get a verified answer.</h2>
+            <h2>Ask for the best route. Get a ranked answer.</h2>
             <p className="section__sub">
               Call <span className="mono">/v1/routes/best</span> with a country and protocol. Get a
-              ranked, x402-available, SDK-verified route back — with the expected exit IP, ASN,
-              confidence, and a fallback.
+              ranked, x402-available route with the expected exit IP, ASN, confidence, recent SDK
+              verification status when available, and a fallback.
+            </p>
+            <p className="caveat">
+              Planned API shape — route-intelligence endpoint under development. Field names may
+              change.
             </p>
           </div>
           <div className="grid grid--2">
@@ -412,14 +455,14 @@ export default function App() {
         <section className="section access" id="access">
           <div className="card access__card">
             <span className="eyebrow">Early access</span>
-            <h2>Looking for technical testers.</h2>
+            <h2>Request early access.</h2>
             <p className="section__sub">
-              We're onboarding teams whose agents need verified, country-specific routes over
-              x402. Drop an email and we'll reach out as slots open.
+              Tell us your target countries, protocol needs, and expected volume.
             </p>
             {submitted ? (
               <p className="access__success" role="status">
-                Not connected yet — placeholder only. (No backend wired up.)
+                Thanks — send your use case to{" "}
+                <a href={mailtoHref}>{CONTACT_EMAIL}</a> while early access is being set up.
               </p>
             ) : (
               <form className="access__form" onSubmit={handleSubmit}>
@@ -437,8 +480,9 @@ export default function App() {
               </form>
             )}
             <p className="access__fine">
-              No anonymity claims, no mass proxy pool. Just selected, x402-available, SDK-verified
-              Sentinel routes — with the proof attached.
+              Prefer email? Reach us directly at{" "}
+              <a href={mailtoHref}>{CONTACT_EMAIL}</a>. No anonymity claims, no mass proxy pool —
+              just selected, x402-available, SDK-verified Sentinel routes with the proof attached.
             </p>
           </div>
         </section>
