@@ -1,18 +1,18 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import "./App.css";
 
 /* ────────────────────────────────────────────────────────────────────────
  * Veil Relay — single-page landing.
  * Positioning: route intelligence + verification layer for AI agents that
  * need machine-payable, verified internet routes over Sentinel + x402.
- * All copy lives in this file. Search the section comments below to edit
- * headlines, steps, cards, proof rows, and code samples.
+ * Proof data is loaded from /routes-status.json with a hardcoded fallback.
  * ──────────────────────────────────────────────────────────────────────── */
 
 const NAV_LINKS = [
   { href: "#how", label: "How it works" },
   { href: "#proof", label: "Proof" },
   { href: "#pricing", label: "What you can pay for" },
+  { href: "#serving", label: "Serving model" },
   { href: "#api", label: "API" },
   { href: "#access", label: "Early access" },
 ];
@@ -56,63 +56,18 @@ const STEPS = [
   },
 ];
 
-// ── Confirmed + blocked routes (real results) ──
-interface ProofRoute {
-  country: string;
-  protocol: string;
-  node: string;
-  expectedIp: string;
-  actualIp: string | null;
-  asn: string;
-  lastVerified: string;
-  verification: string;
-  status: "sdk_confirmed" | "blocked";
-}
-
-const CONFIRMED_ROUTES: ProofRoute[] = [
+// ── Serving model stages ──
+const SERVING_STAGES = [
+  { when: "Today", body: "Public proof page + static route-status snapshot." },
   {
-    country: "France",
-    protocol: "V2Ray",
-    node: "sentnode1ym4qjy84p0gpvdz0zc2s9q9u5x7lmhdrzwlslz",
-    expectedIp: "31.59.120.143",
-    actualIp: "31.59.120.143",
-    asn: "AS56971 AS56971 Cloud",
-    lastVerified: "2026-06-25 04:43 UTC",
-    verification: "strict PASS",
-    status: "sdk_confirmed",
+    when: "Next",
+    body: "Route intelligence API returning ranked routes, expected exit IP, ASN, confidence, SDK verification status, and fallback routes.",
   },
+  { when: "Then", body: "x402-gated route intelligence — pay per route answer." },
   {
-    country: "United Kingdom",
-    protocol: "V2Ray",
-    node: "sentnode1przesh8al9anu9m6wd3kp2lz8g4g2lh6qry7ra",
-    expectedIp: "188.119.155.13",
-    actualIp: "188.119.155.13",
-    asn: "AS201323 Host Media Ltd",
-    lastVerified: "2026-06-25 05:02 UTC",
-    verification: "strict PASS",
-    status: "sdk_confirmed",
+    when: "Later",
+    body: "Curated x402 route access through a Veil Relay–controlled Sentinel plan.",
   },
-];
-
-const BLOCKED_ROUTE: ProofRoute = {
-  country: "Türkiye",
-  protocol: "WireGuard",
-  node: "sentnode19x60rkfph6zxa49and7jv9q02jwgycskgdkew2",
-  expectedIp: "—",
-  actualIp: null,
-  asn: "—",
-  lastVerified: "—",
-  verification: "recent timeout",
-  status: "blocked",
-};
-
-// ── Coverage snapshot (route-ready pool, not live x402 coverage) ──
-const STATS = [
-  { num: "14", label: "route-ready nodes" },
-  { num: "11", label: "V2Ray" },
-  { num: "3", label: "WireGuard" },
-  { num: "2", label: "SDK-confirmed routes" },
-  { num: "1", label: "correctly blocked" },
 ];
 
 // ── What customers can pay for (4) ──
@@ -168,6 +123,146 @@ const API_RESPONSE = `{
 const CONTACT_EMAIL = "early-access@veil-relay.dev";
 const CONTACT_SUBJECT = "Veil Relay early access";
 
+// Optional capture endpoint (Formspree / Tally / custom). When unset, the form
+// runs in "intake-only" mode and points people at the mailto fallback below.
+const FORM_ENDPOINT = import.meta.env.VITE_EARLY_ACCESS_FORM_ENDPOINT;
+
+/* ── Route-status JSON (loaded from /routes-status.json) ─────────────────── */
+
+interface RouteEntry {
+  country: string;
+  countryCode: string;
+  protocol: string;
+  nodeAddress: string;
+  expectedExitIp: string | null;
+  actualExitIp: string | null;
+  asn: string | null;
+  lastVerified: string | null;
+  verification: string;
+  status: string;
+}
+
+interface RoutesSummary {
+  routeReady: number;
+  v2ray: number;
+  wireguard: number;
+  sdkConfirmed: number;
+  blocked: number;
+}
+
+interface RoutesStatus {
+  schemaVersion: number;
+  generatedAt: string;
+  source: string;
+  note: string;
+  summary: RoutesSummary;
+  confirmedRoutes: RouteEntry[];
+  blockedRoutes: RouteEntry[];
+}
+
+// Normalized shape the UI renders.
+interface DisplayRoute {
+  country: string;
+  protocol: string;
+  node: string;
+  expectedIp: string;
+  actualIp: string | null;
+  asn: string;
+  lastVerified: string;
+  verification: string;
+  statusLabel: string;
+  confirmed: boolean;
+}
+
+// ── Hardcoded fallback (used if /routes-status.json fails to load) ──
+const FALLBACK_CONFIRMED: DisplayRoute[] = [
+  {
+    country: "France",
+    protocol: "V2Ray",
+    node: "sentnode1ym4qjy84p0gpvdz0zc2s9q9u5x7lmhdrzwlslz",
+    expectedIp: "31.59.120.143",
+    actualIp: "31.59.120.143",
+    asn: "AS56971 AS56971 Cloud",
+    lastVerified: "2026-06-25 04:43 UTC",
+    verification: "strict PASS",
+    statusLabel: "sdk_confirmed",
+    confirmed: true,
+  },
+  {
+    country: "United Kingdom",
+    protocol: "V2Ray",
+    node: "sentnode1przesh8al9anu9m6wd3kp2lz8g4g2lh6qry7ra",
+    expectedIp: "188.119.155.13",
+    actualIp: "188.119.155.13",
+    asn: "AS201323 Host Media Ltd",
+    lastVerified: "2026-06-25 05:02 UTC",
+    verification: "strict PASS",
+    statusLabel: "sdk_confirmed",
+    confirmed: true,
+  },
+];
+
+const FALLBACK_BLOCKED: DisplayRoute[] = [
+  {
+    country: "Türkiye",
+    protocol: "WireGuard",
+    node: "sentnode19x60rkfph6zxa49and7jv9q02jwgycskgdkew2",
+    expectedIp: "—",
+    actualIp: null,
+    asn: "—",
+    lastVerified: "—",
+    verification: "recent timeout",
+    statusLabel: "recent_timeout_failure",
+    confirmed: false,
+  },
+];
+
+const FALLBACK_SUMMARY: RoutesSummary = {
+  routeReady: 14,
+  v2ray: 11,
+  wireguard: 3,
+  sdkConfirmed: 2,
+  blocked: 1,
+};
+
+function protoLabel(p: string): string {
+  const k = p.toLowerCase();
+  if (k === "v2ray") return "V2Ray";
+  if (k === "wireguard") return "WireGuard";
+  return p;
+}
+
+function toDisplay(e: RouteEntry): DisplayRoute {
+  return {
+    country: e.country,
+    protocol: protoLabel(e.protocol),
+    node: e.nodeAddress,
+    expectedIp: e.expectedExitIp ?? "—",
+    actualIp: e.actualExitIp,
+    asn: e.asn ?? "—",
+    lastVerified: e.lastVerified ?? "—",
+    verification: e.verification,
+    statusLabel: e.status,
+    confirmed: e.status === "sdk_confirmed",
+  };
+}
+
+// "2026-06-25T05:10:00Z" → "2026-06-25 05:10 UTC"
+function fmtGenerated(iso: string): string {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(iso);
+  return m ? `${m[1]} ${m[2]} UTC` : iso;
+}
+
+function statTiles(s: RoutesSummary) {
+  return [
+    { num: String(s.routeReady), label: "route-ready nodes" },
+    { num: String(s.v2ray), label: "V2Ray" },
+    { num: String(s.wireguard), label: "WireGuard" },
+    { num: String(s.sdkConfirmed), label: "SDK-confirmed routes" },
+    { num: String(s.blocked), label: "correctly blocked" },
+  ];
+}
+
 function Pill({ kind, children }: { kind: string; children: ReactNode }) {
   return <span className={`pill pill--${kind}`}>{children}</span>;
 }
@@ -190,15 +285,14 @@ function short(node: string) {
   return node.length > 22 ? `${node.slice(0, 12)}…${node.slice(-6)}` : node;
 }
 
-function ProofCard({ r }: { r: ProofRoute }) {
-  const confirmed = r.status === "sdk_confirmed";
+function ProofCard({ r }: { r: DisplayRoute }) {
   return (
     <article className="card proof">
       <div className="proof__head">
         <span className="proof__route">
           {r.country} <span className="mono">/ {r.protocol}</span>
         </span>
-        <Pill kind={confirmed ? "confirmed" : "blocked"}>{r.status}</Pill>
+        <Pill kind={r.confirmed ? "confirmed" : "blocked"}>{r.statusLabel}</Pill>
       </div>
       <div className="kv">
         <span className="kv__k">node</span>
@@ -212,7 +306,7 @@ function ProofCard({ r }: { r: ProofRoute }) {
       </div>
       <div className="kv">
         <span className="kv__k">actual IP</span>
-        <span className={`kv__v${confirmed ? " kv__v--ok" : ""}`}>{r.actualIp ?? "not connected"}</span>
+        <span className={`kv__v${r.confirmed ? " kv__v--ok" : ""}`}>{r.actualIp ?? "not connected"}</span>
       </div>
       <div className="kv">
         <span className="kv__k">ASN</span>
@@ -224,34 +318,104 @@ function ProofCard({ r }: { r: ProofRoute }) {
       </div>
       <div className="kv">
         <span className="kv__k">verification</span>
-        <span className={`kv__v${confirmed ? " kv__v--ok" : " kv__v--bad"}`}>{r.verification}</span>
+        <span className={`kv__v${r.confirmed ? " kv__v--ok" : " kv__v--bad"}`}>{r.verification}</span>
       </div>
     </article>
   );
 }
 
-export default function App() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+interface EarlyAccessForm {
+  email: string;
+  useCase: string;
+  targetCountries: string;
+  protocolNeeds: string;
+  expectedVolume: string;
+}
 
-  // No backend yet: the form just reveals a mailto contact path (see CONTACT_EMAIL TODO).
+const EMPTY_FORM: EarlyAccessForm = {
+  email: "",
+  useCase: "",
+  targetCountries: "",
+  protocolNeeds: "",
+  expectedVolume: "",
+};
+
+type FormPhase = "idle" | "submitting" | "sent" | "error" | "no-endpoint";
+
+export default function App() {
+  // ── Route-status data ──
+  const [status, setStatus] = useState<RoutesStatus | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/routes-status.json", { cache: "no-cache" })
+      .then((res) => (res.ok ? (res.json() as Promise<RoutesStatus>) : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        if (!cancelled) setStatus(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const confirmedRoutes = status ? status.confirmedRoutes.map(toDisplay) : FALLBACK_CONFIRMED;
+  const blockedRoutes = status ? status.blockedRoutes.map(toDisplay) : FALLBACK_BLOCKED;
+  const summary = status?.summary ?? FALLBACK_SUMMARY;
+  const generatedAt = status?.generatedAt ?? null;
+  const firstBlocked = blockedRoutes[0];
+
+  // ── Early-access form ──
+  const [form, setForm] = useState<EarlyAccessForm>(EMPTY_FORM);
+  const [phase, setPhase] = useState<FormPhase>("idle");
+
+  function update<K extends keyof EarlyAccessForm>(key: K, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
   const mailtoBody = [
     "Hi Veil Relay team,",
     "",
     "I'd like early access. Here's my use case:",
-    "- Target countries:",
-    "- Protocol needs (WireGuard / V2Ray):",
-    "- Expected volume:",
-    email ? `\nReply to: ${email}` : "",
+    `- What I'm building: ${form.useCase || ""}`,
+    `- Target countries: ${form.targetCountries || ""}`,
+    `- Protocol needs (WireGuard / V2Ray): ${form.protocolNeeds || ""}`,
+    `- Expected request volume: ${form.expectedVolume || ""}`,
+    form.email ? `\nReply to: ${form.email}` : "",
   ].join("\n");
   const mailtoHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
     CONTACT_SUBJECT
   )}&body=${encodeURIComponent(mailtoBody)}`;
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+
+    // No capture endpoint configured → intake-only mode (no fake "stored" claim).
+    if (!FORM_ENDPOINT) {
+      setPhase("no-endpoint");
+      return;
+    }
+
+    setPhase("submitting");
+    try {
+      // To wire a real backend: set VITE_EARLY_ACCESS_FORM_ENDPOINT to a
+      // Formspree/Tally/custom URL that accepts a JSON POST.
+      const res = await fetch(FORM_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setPhase("sent");
+    } catch {
+      setPhase("error");
+    }
   }
+
+  const showForm = phase === "idle" || phase === "submitting" || phase === "error";
 
   return (
     <div className="page">
@@ -379,27 +543,35 @@ export default function App() {
           </div>
 
           <div className="grid grid--2">
-            {CONFIRMED_ROUTES.map((r) => (
+            {confirmedRoutes.map((r) => (
               <ProofCard key={r.node} r={r} />
             ))}
           </div>
 
-          <div className="proof-blocked">
-            <ProofCard r={BLOCKED_ROUTE} />
-            <p className="note">
-              Failure handling works too: this Türkiye / WireGuard node hit a recent timeout and is
-              correctly blocked from selection until it recovers.
-            </p>
-          </div>
+          {firstBlocked && (
+            <div className="proof-blocked">
+              <ProofCard r={firstBlocked} />
+              <p className="note">
+                Failure handling works too: nodes with recent timeouts or failures are correctly
+                blocked from selection until they recover — bad routes are withheld, not served.
+              </p>
+            </div>
+          )}
 
           <div className="stats">
-            {STATS.map((s) => (
+            {statTiles(summary).map((s) => (
               <div className="stat" key={s.label}>
                 <div className="stat__num">{s.num}</div>
                 <div className="stat__label">{s.label}</div>
               </div>
             ))}
           </div>
+
+          <p className="data-source">
+            Data source: static scanner snapshot.
+            {generatedAt ? ` Generated ${fmtGenerated(generatedAt)}.` : ""}
+            {loadFailed ? " Live snapshot unavailable — showing last-known values." : ""}
+          </p>
           <p className="note">
             Coverage is early and intentionally narrow. Route-ready coverage does not equal live
             public x402 plan coverage — a scanner route-ready node may not currently be inside the
@@ -428,7 +600,31 @@ export default function App() {
           </div>
         </section>
 
-        {/* ── 6. Developer / API ── */}
+        {/* ── 6. Serving model ── */}
+        <section className="section" id="serving">
+          <div className="section__head">
+            <span className="eyebrow">Serving model</span>
+            <h2>How users will access Veil Relay.</h2>
+            <p className="section__sub">
+              This page is proof, not the product. The first product is route intelligence; full
+              route access comes later.
+            </p>
+          </div>
+          <ol className="stages-list">
+            {SERVING_STAGES.map((s) => (
+              <li className="stage-row card" key={s.when}>
+                <span className="stage-when">{s.when}</span>
+                <span className="stage-body">{s.body}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="note">
+            The Sentinel SDK and proxy/session handling run in long-running VPS/worker
+            infrastructure — never in this frontend. The website only reads published route data.
+          </p>
+        </section>
+
+        {/* ── 7. Developer / API ── */}
         <section className="section" id="api">
           <div className="section__head">
             <span className="eyebrow">For developers</span>
@@ -451,38 +647,86 @@ export default function App() {
           </div>
         </section>
 
-        {/* ── 7. Early access ── */}
+        {/* ── 8. Early access ── */}
         <section className="section access" id="access">
           <div className="card access__card">
             <span className="eyebrow">Early access</span>
             <h2>Request early access.</h2>
             <p className="section__sub">
-              Tell us your target countries, protocol needs, and expected volume.
+              Tell us what you're building, your target countries, protocol needs, and expected
+              request volume.
             </p>
-            {submitted ? (
+
+            {phase === "sent" ? (
               <p className="access__success" role="status">
-                Thanks — send your use case to{" "}
-                <a href={mailtoHref}>{CONTACT_EMAIL}</a> while early access is being set up.
+                Thanks — we've received your early-access request and will be in touch.
               </p>
-            ) : (
-              <form className="access__form" onSubmit={handleSubmit}>
-                <input
-                  type="email"
-                  required
-                  placeholder="you@company.dev"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  aria-label="Email address"
+            ) : phase === "no-endpoint" ? (
+              <p className="access__success" role="status">
+                Early-access capture isn't connected yet. Send your use case through the contact
+                link below — <a href={mailtoHref}>{CONTACT_EMAIL}</a>.
+              </p>
+            ) : null}
+
+            {showForm && (
+              <form className="access__form access__form--full" onSubmit={handleSubmit}>
+                <div className="field-grid">
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@company.dev"
+                    value={form.email}
+                    onChange={(e) => update("email", e.target.value)}
+                    aria-label="Email address"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Target countries (e.g. FR, GB)"
+                    value={form.targetCountries}
+                    onChange={(e) => update("targetCountries", e.target.value)}
+                    aria-label="Target countries"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Protocol needs (WireGuard / V2Ray)"
+                    value={form.protocolNeeds}
+                    onChange={(e) => update("protocolNeeds", e.target.value)}
+                    aria-label="Protocol needs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Expected request volume"
+                    value={form.expectedVolume}
+                    onChange={(e) => update("expectedVolume", e.target.value)}
+                    aria-label="Expected request volume"
+                  />
+                </div>
+                <textarea
+                  placeholder="What are you building? (agents, automation, geo-testing…)"
+                  value={form.useCase}
+                  onChange={(e) => update("useCase", e.target.value)}
+                  aria-label="What are you building?"
+                  rows={3}
                 />
-                <button className="btn btn--primary" type="submit">
-                  Request early access
+                <button className="btn btn--primary" type="submit" disabled={phase === "submitting"}>
+                  {phase === "submitting" ? "Sending…" : "Request early access"}
                 </button>
+                {phase === "error" && (
+                  <p className="access__error" role="status">
+                    Couldn't submit just now. Please email{" "}
+                    <a href={mailtoHref}>{CONTACT_EMAIL}</a> instead.
+                  </p>
+                )}
               </form>
             )}
+
             <p className="access__fine">
-              Prefer email? Reach us directly at{" "}
-              <a href={mailtoHref}>{CONTACT_EMAIL}</a>. No anonymity claims, no mass proxy pool —
-              just selected, x402-available, SDK-verified Sentinel routes with the proof attached.
+              {FORM_ENDPOINT
+                ? "We only use this to evaluate early-access fit. "
+                : "Capture endpoint not configured yet — the email link is the reliable path. "}
+              Prefer email? Reach us directly at <a href={mailtoHref}>{CONTACT_EMAIL}</a>. No
+              anonymity claims, no mass proxy pool — just selected, x402-available, SDK-verified
+              Sentinel routes with the proof attached.
             </p>
           </div>
         </section>
