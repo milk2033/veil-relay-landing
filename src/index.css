@@ -1,0 +1,66 @@
+:root {
+  /* Palette — dark navy + one muted cyan accent */
+  --bg: #0a0e14;
+  --bg-2: #0e1420;
+  --surface: #111927;
+  --surface-2: #0c121d;
+  --border: #1d2737;
+  --border-2: #27344a;
+  --text: #e6edf6;
+  --text-dim: #93a1b5;
+  --text-faint: #5e6c80;
+  --accent: #4fd1c5; /* muted cyan */
+  --accent-soft: rgba(79, 209, 197, 0.12);
+  --accent-line: rgba(79, 209, 197, 0.35);
+  --ok: #56d364;
+  --warn: #e3b341;
+  --bad: #f0883e;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --maxw: 1120px;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* subtle top glow so the dark page isn't flat */
+  background-image:
+    radial-gradient(900px 500px at 78% -8%, rgba(79, 209, 197, 0.10), transparent 60%),
+    radial-gradient(700px 400px at 0% 0%, rgba(56, 102, 168, 0.10), transparent 55%);
+  background-repeat: no-repeat;
+}
+
+h1, h2, h3 {
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
