@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-25T05:10:00Z",
-  "source": "scanner_export_static_snapshot",
-  "note": "Static scanner snapshot for public proof. Route-ready coverage does not equal live x402 plan coverage.",
+  "generatedAt": "2026-06-26T03:22:13Z",
+  "source": "scanner_export",
+  "note": "Scanner-derived public snapshot. Route-ready coverage does not equal live x402 plan coverage.",
   "summary": {
-    "routeReady": 14,
-    "v2ray": 11,
+    "routeReady": 13,
+    "v2ray": 10,
     "wireguard": 3,
     "sdkConfirmed": 2,
     "blocked": 1
@@ -42,10 +42,10 @@
       "countryCode": "TR",
       "protocol": "wireguard",
       "nodeAddress": "sentnode19x60rkfph6zxa49and7jv9q02jwgycskgdkew2",
-      "expectedExitIp": null,
+      "expectedExitIp": "94.156.11.96",
       "actualExitIp": null,
-      "asn": null,
-      "lastVerified": null,
+      "asn": "AS210331 FIRAT SENEM",
+      "lastVerified": "2026-06-24 15:44 UTC",
       "verification": "recent timeout",
       "status": "recent_timeout_failure"
     }
