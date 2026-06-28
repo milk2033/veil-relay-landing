@@ -10,7 +10,78 @@
     <title>Veil Relay — Verified x402 routes for AI agents</title>
   </head>
   <body>
+    <div id="veil-live-poc" aria-live="polite"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (() => {
+        const apiBaseFromEnv = "%VITE_VEIL_API_BASE%";
+        const fallbackApiBase = "https://sean-memo-functionality-telecommunications.trycloudflare.com";
+        const apiBase = apiBaseFromEnv && !apiBaseFromEnv.startsWith("%") ? apiBaseFromEnv : fallbackApiBase;
+        const mount = document.getElementById("veil-live-poc");
+        if (!mount || !apiBase) return;
+
+        const styles = {
+          wrap: "box-sizing:border-box;width:min(1120px,calc(100% - 32px));margin:16px auto 0;padding:14px 16px;border:1px solid rgba(148,163,184,.28);border-radius:16px;background:linear-gradient(135deg,rgba(15,23,42,.92),rgba(2,6,23,.96));color:#e5e7eb;font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:0 18px 50px rgba(0,0,0,.25)",
+          row: "display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between",
+          title: "font-weight:700;letter-spacing:.01em",
+          pill: "display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(34,197,94,.14);color:#bbf7d0;border:1px solid rgba(34,197,94,.35);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em",
+          fail: "display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(239,68,68,.14);color:#fecaca;border:1px solid rgba(239,68,68,.35);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em",
+          grid: "display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px",
+          card: "padding:10px 12px;border:1px solid rgba(148,163,184,.18);border-radius:12px;background:rgba(15,23,42,.72)",
+          k: "display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px",
+          v: "display:block;color:#f8fafc;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap",
+          note: "margin:10px 0 0;color:#94a3b8;font-size:12px"
+        };
+
+        function shortNode(node) {
+          if (!node) return "—";
+          return node.length > 24 ? `${node.slice(0, 12)}…${node.slice(-7)}` : node;
+        }
+
+        function renderLoading() {
+          mount.innerHTML = `<section style="${styles.wrap}"><div style="${styles.row}"><strong style="${styles.title}">Veil Relay public POC API</strong><span style="${styles.pill}">loading</span></div><p style="${styles.note}">${apiBase}</p></section>`;
+        }
+
+        function renderError(error) {
+          mount.innerHTML = `<section style="${styles.wrap}"><div style="${styles.row}"><strong style="${styles.title}">Veil Relay public POC API</strong><span style="${styles.fail}">offline</span></div><p style="${styles.note}">Could not reach the live API. The Cloudflare Quick Tunnel may have stopped. ${String(error || "")}</p></section>`;
+        }
+
+        function render({ health, status, best }) {
+          const selected = best?.selected || {};
+          const summary = status?.summary || {};
+          mount.innerHTML = `
+            <section style="${styles.wrap}">
+              <div style="${styles.row}">
+                <strong style="${styles.title}">Live public POC API</strong>
+                <span style="${health?.ok ? styles.pill : styles.fail}">${health?.ok ? "connected" : "degraded"}</span>
+              </div>
+              <div style="${styles.grid}">
+                <div style="${styles.card}"><span style="${styles.k}">route-ready</span><span style="${styles.v}">${summary.routeReady ?? "—"}</span></div>
+                <div style="${styles.card}"><span style="${styles.k}">confirmed</span><span style="${styles.v}">${(status?.confirmedRoutes || []).length}</span></div>
+                <div style="${styles.card}"><span style="${styles.k}">best route</span><span style="${styles.v}">${selected.countryCode || "—"} / ${selected.protocol || "—"}</span></div>
+                <div style="${styles.card}"><span style="${styles.k}">exit IP</span><span style="${styles.v}">${selected.actualExitIp || selected.expectedExitIp || "—"}</span></div>
+              </div>
+              <p style="${styles.note}">Selected node: <code>${shortNode(selected.nodeAddress)}</code>. Private fetch/live session is intentionally disabled on this public demo.</p>
+            </section>
+          `;
+        }
+
+        async function getJson(path) {
+          const res = await fetch(`${apiBase}${path}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`${path} HTTP ${res.status}`);
+          return res.json();
+        }
+
+        renderLoading();
+        Promise.all([
+          getJson("/healthz"),
+          getJson("/v1/routes/status"),
+          getJson("/v1/routes/best?country=GB&protocol=v2ray")
+        ])
+          .then(([health, status, best]) => render({ health, status, best }))
+          .catch(renderError);
+      })();
+    </script>
   </body>
 </html>
