@@ -3,7 +3,7 @@ import "./X402Demo.css";
 
 const DEFAULT_API_BASE =
   import.meta.env.VITE_VEIL_API_BASE ||
-  "https://deposits-coalition-strengthening-runner.trycloudflare.com";
+  "https://api.getviddi.com";
 
 type AnyJson = Record<string, any>;
 
